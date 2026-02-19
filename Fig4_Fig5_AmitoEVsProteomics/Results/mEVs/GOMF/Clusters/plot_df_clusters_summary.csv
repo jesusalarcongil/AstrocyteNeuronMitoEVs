@@ -1,0 +1,25 @@
+"cluster","n_terms","mean_minusLog10_padj","mean_sim","keywords","label_y_wrapped"
+6,11,4.29608531139965,0.580298810467185,"activity transporter transmembrane type atpase coupled ion mechanism potassium rotational","activity transporter transmembrane type
+atpase coupled ion
+mechanism potassium rotational"
+7,8,5.30974318178577,0.507900568004855,"activity ligase carbon acid bonds forming nitrogen amido amino aminoacyl","activity ligase carbon acid
+bonds forming nitrogen
+amido amino aminoacyl"
+1,47,3.18548373010891,0.506721130901034,"activity transmembrane transporter acid amino monoatomic active ion symporter cation","activity transmembrane transporter acid
+amino monoatomic active
+ion symporter cation"
+8,7,3.52021003030689,0.494122292050487,"activity lyase carbon aldehyde coa enoyl hydratase hydro nitrogen oxygen","activity lyase carbon aldehyde
+coa enoyl hydratase
+hydro nitrogen oxygen"
+5,18,3.53764083645476,0.410210326953902,"activity type endopeptidase peptidase cysteine serine aspartic aminopeptidase calcium carboxypeptidase","activity type endopeptidase peptidase
+cysteine serine aspartic
+aminopeptidase calcium carboxypeptidase"
+2,31,4.12227867283232,0.377553206486555,"activity acting oxidoreductase donors nad acceptor dehydrogenase nadp aldehyde reductase","activity acting oxidoreductase donors
+nad acceptor dehydrogenase
+nadp aldehyde reductase"
+4,24,4.14362445458381,0.334675011639698,"activity hydrolase acting phosphatase bonds protein carbon ester ether glycosyl","activity hydrolase acting phosphatase
+bonds protein carbon
+ester ether glycosyl"
+3,29,2.92462646202725,0.285537496996347,"activity kinase isomerase protein transferase intramolecular cis glycosyltransferase nucleoside oxidoreductase","activity kinase isomerase protein
+transferase intramolecular cis
+glycosyltransferase nucleoside oxidoreductase"

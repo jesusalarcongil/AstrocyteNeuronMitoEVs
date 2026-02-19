@@ -1,0 +1,37 @@
+"cluster","n_terms","mean_minusLog10_padj","mean_sim","keywords","label_y_wrapped"
+1,87,8.69180614860819,0.970726337030822,"degradation mediated signaling regulation apc dna proteins cell cdc20 cycle","degradation mediated signaling regulation
+apc dna proteins
+cell cdc20 cycle"
+10,8,8.67579344534792,0.894657863145258,"platelet signaling mapk activation aggregation integrins linkage ca2 cytosolic degranulation","platelet signaling mapk activation
+aggregation integrins linkage
+ca2 cytosolic degranulation"
+12,7,6.46168684645467,0.884837045816797,"signaling activates akt clrs epsilon fceri gli3 gli3r interleukins intracellular","signaling activates akt clrs
+epsilon fceri gli3
+gli3r interleukins intracellular"
+6,14,6.92855465717273,0.846281180647682,"mitotic anaphase cellular hedgehog responses signaling checkpoint chromatids cytokine gtse1","mitotic anaphase cellular hedgehog
+responses signaling checkpoint
+chromatids cytokine gtse1"
+5,15,3.81840723313339,0.838658493428243,"ampa receptors clearance dependent internalization signaling trafficking wnt5a activation axon","ampa receptors clearance dependent
+internalization signaling trafficking
+wnt5a activation axon"
+8,13,2.59811430373847,0.819498314293206,"centrosome gtpases mitotic rho centrosomes loss proteins recruitment signaling activation","centrosome gtpases mitotic rho
+centrosomes loss proteins
+recruitment signaling activation"
+11,8,5.9317640853944,0.741502381714192,"processing antigen presentation acids amino cellular chemical class cross degradation","processing antigen presentation acids
+amino cellular chemical
+class cross degradation"
+2,24,4.64910812005993,0.671456250362058,"golgi transport retrograde copi membrane traffic anterograde connexons dependent mediated","golgi transport retrograde copi
+membrane traffic anterograde
+connexons dependent mediated"
+9,11,6.19961576125812,0.635051768205727,"interactions cell met ecm extracellular integrin matrix signaling surface activates","interactions cell met ecm
+extracellular integrin matrix
+signaling surface activates"
+3,16,2.94577318819344,0.446180555555556,"assembly signalling activation factor glucagon growth insulin lipoprotein phosphorylation plasma","assembly signalling activation factor
+glucagon growth insulin
+lipoprotein phosphorylation plasma"
+7,14,2.37590191110019,0.369861007830933,"activation apoptosis platelet activate bad bh3 carbohydrates cdk1 cds1 cell","activation apoptosis platelet activate
+bad bh3 carbohydrates
+cdk1 cds1 cell"
+4,16,3.50593796200275,0.25667672197084,"signaling cycle receptor rho actin activate activates activation beta calnexin","signaling cycle receptor rho
+actin activate activates
+activation beta calnexin"

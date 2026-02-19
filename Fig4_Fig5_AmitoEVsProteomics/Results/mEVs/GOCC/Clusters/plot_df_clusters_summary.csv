@@ -1,0 +1,28 @@
+"cluster","n_terms","mean_minusLog10_padj","mean_sim","keywords","label_y_wrapped"
+8,10,3.60084956182222,0.340469148550694,"coat clathrin vesicle adaptor complex membrane coated copii endocytic pit","coat clathrin vesicle adaptor
+complex membrane coated
+copii endocytic pit"
+5,18,4.55834921376619,0.29527301601559,"membrane cytoplasm projection axon cell cilium motile neuron axolemma bounded","membrane cytoplasm projection axon
+cell cilium motile
+neuron axolemma bounded"
+4,19,4.46516474287966,0.276282908197998,"membrane postsynaptic component presynaptic extrinsic synaptic density vesicle zone active","membrane postsynaptic component presynaptic
+extrinsic synaptic density
+vesicle zone active"
+1,29,9.74632774328853,0.269244212800255,"complex proteasome chain respiratory particle protein atp core dehydrogenase proton","complex proteasome chain respiratory
+particle protein atp
+core dehydrogenase proton"
+6,15,5.28366886066539,0.244782593075125,"membrane vesicle coated endosome clathrin endocytic golgi granule transport copi","membrane vesicle coated endosome
+clathrin endocytic golgi
+granule transport copi"
+2,21,5.32795194341837,0.23693051501803,"complex atpase transporting proton domain type sector cation membrane protein","complex atpase transporting proton
+domain type sector
+cation membrane protein"
+7,12,9.96408790782433,0.193153935669038,"vesicle endosome coated granule acrosomal azurophil clathrin endocytic exocytic exosome","vesicle endosome coated granule
+acrosomal azurophil clathrin
+endocytic exocytic exosome"
+9,10,4.32312333658758,0.159919783236148,"membrane outer reticulum autophagosome cisterna endoplasmic golgi lysosomal lytic mitochondrial","membrane outer reticulum autophagosome
+cisterna endoplasmic golgi
+lysosomal lytic mitochondrial"
+3,20,5.34980583650841,0.107035547206516,"complex ribosomal subunit actin cortical cytoskeleton cytosolic endoplasmic myosin protein","complex ribosomal subunit actin
+cortical cytoskeleton cytosolic
+endoplasmic myosin protein"
