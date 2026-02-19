@@ -5,9 +5,6 @@
 
 # 1. Introduce variables
 
-# In[4]:
-
-
 import subprocess
 import os
 import re
@@ -51,20 +48,14 @@ TresholdMG = 500 #NLGF1, NLGF2, WT5, WT7
 
 # 2. Convert nd2 to tiff
 
-# 2.1. Crear la carpeta de conversion a tiff
-
-# In[5]:
-
+# 2.1. Create tiff folder
 
 RawNd2PathIndex =RawNd2Path.rfind('/')
 RawTiffData = RawNd2Path[:(RawNd2PathIndex+1)] + "RawTiffData"
 #os.makedirs(RawTiffData)
 
 
-# 2.2 Crear la lista de las path de los archivos input y de los archivos output de nd2 a tiff
-
-# In[3]:
-
+# 2.2 Create nd2 and tiff paths
 
 RawNd2Files = os.listdir(RawNd2Path)
 RawNd2FilePaths = []
@@ -96,9 +87,6 @@ for i in range(len(RawTiffFiles)):
 
 # 2.3 Convert the files
 
-# In[4]:
-
-
 for i in range(len(RawNd2FilePaths)):
     for z in range(len(RawTiffFilePaths)):
         NameFolderIndex2 = RawTiffFilePaths[z].rfind('/')
@@ -112,10 +100,7 @@ for i in range(len(RawNd2FilePaths)):
 
 # 3. Deconvolution with Deconwolf
 
-# 3.1. Crear la carpeta y las carpetas de deconvolution
-
-# In[26]:
-
+# 3.1. Create deconvolution folders
 
 RawNd2PathIndex = RawNd2Path.rfind('/')
 DeconTiffData = RawNd2Path[:(RawNd2PathIndex+1)] + "DeconTiffData"
@@ -133,10 +118,7 @@ for i in range(len(RawNd2Files)):
     EmWavesDeconTiffPaths.append(DeconTiffChannelData)
 
 
-# 3.2 Crear los archivos PSF de los canales
-
-# In[27]:
-
+# 3.2 Create PSF
 
 PSFData = RawNd2Path[:(RawNd2PathIndex+1)] + "PSFData"
 os.makedirs(PSFData)
@@ -151,10 +133,7 @@ for channel in range(NChannels):
     subprocess.run(createPSF)
 
 
-# 3.3 Deconvolucionar los tiff files
-
-# In[28]:
-
+# 3.3 Deconvolute tiff files
 
 RawTiffInputFolder = os.listdir(RawTiffData)
 
@@ -169,9 +148,6 @@ for y in range(len(RawTiffInputFolder)):
 
 
 # 3.4 Move the log files to another folder
-
-# In[39]:
-
 
 LogFile = '.log.txt'
 DeconLogFolder = RawNd2Path[:(RawNd2PathIndex+1)] + "/" + "DeconLog"
@@ -194,9 +170,6 @@ for y in range(len(DeconTiffInputFolder)):
 # 4. MitoTNT
 
 # 4.1 Create MitoTNT input folder
-
-# In[129]:
-
 
 DeconTiffData = RawNd2Path[:(RawNd2PathIndex+1)] + "DeconTiffData"
 DeconTiffInputFolder = os.listdir(DeconTiffData)
@@ -261,10 +234,7 @@ for y in range(len(DeconMitoInputFolder)):
                     imwrite(SaveMitoGraphFileFolder, DeconTiffMitoStackNormSelec)
 
 
-# 4.2. MitoTNT preprocessing
-
-# In[3]:
-
+# 4.2. MitoTNT processing
 
 MitoGraphFolder = RawNd2Path[:(RawNd2PathIndex+1)] + "MitoGraphData"
 MitoGraphFolderSamples = os.listdir(MitoGraphFolder)
@@ -277,10 +247,6 @@ for x in range(len(MitoGraphFolderSamples)):
     seg = mitotnt.MitoSegmenter(MitoGraphFile2AnalyzePath, mitopattern, xysize, zsize)
     seg.run_mitograph_cpu(max_workers=NCores, extra_params = " -analyze")
     seg.visualize_segmented_data()
-
-
-# In[6]:
-
 
 MitoGraphFolder = RawNd2Path[:(RawNd2PathIndex+1)] + "MitoGraphData"
 MitoGraphFolderSamples = os.listdir(MitoGraphFolder)
@@ -295,10 +261,6 @@ for x in range(len(MitoGraphFolderSamples)):
     seg.visualize_segmented_data()
     skel = mitotnt.SkeletonizedMito(seg)
     skel.extract_graphs(node_gap_size = 2)
-
-
-# In[130]:
-
 
 MitoGraphFolder = RawNd2Path[:(RawNd2PathIndex+1)] + "MitoGraphData"
 MitoGraphFolderSamples = os.listdir(MitoGraphFolder)
@@ -326,8 +288,6 @@ for x in range(len(MitoGraphFolderSamples)):
     del tracker, tracked, viz
     gc.collect()
 
-
-# In[ ]:
 
 
 
