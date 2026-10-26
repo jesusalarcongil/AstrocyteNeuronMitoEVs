@@ -1,0 +1,1774 @@
+---
+title: "mitoAEVs"
+author: "Jesus Alarcon-Gil"
+date: "2025-12-03"
+output: pdf_document
+---
+
+# ANALYSIS CONFIGURATION
+
+## Loading required libraries and custom functions
+```{r configuration, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load required libraries
+libraries2load = c("ggplot2", "dplyr", "tidyr", "tibble", "pheatmap",
+                 "RColorBrewer", "org.Mm.eg.db", "ggrepel", "readxl", "stringr",
+                 "gridExtra", "limma", "DEP", "vsn", "mixOmics",
+                 "EnhancedVolcano", "enrichR", "ReactomePA", "clusterProfiler",
+                 "pathview", "enrichplot", "DOSE", "AnnotationDbi", "circlize",
+                 "ComplexHeatmap", "ggnewscale", "SummarizedExperiment",
+                 "stats", "org.Hs.eg.db", "tidytable", "Orthology.eg.db",
+                 "homologene", "HPAanalyze", "UniProt.ws", "fgsea", "tidyverse",
+                 "purrr", "eulerr", "variancePartition", "BiocParallel",
+                 "circlize", "grid", "missForest", "htmlwidgets", "plotly",
+                 "rgl", "simplifyEnrichment", "tidytext", "ragg", "msigdbr")
+
+lapply(libraries2load, library, character.only = TRUE)
+
+# Set working directory
+pipelineFolder = dirname(rstudioapi::getActiveDocumentContext()$path)
+setwd(pipelineFolder)
+
+# Load custom functions
+source("./Functions/DatabaseGenerationFunctions.R")
+source("./Functions/EnrichmentAnalysisFunctions.R")
+source("./Functions/ModifiedDEPFunctions.R")
+source("./Functions/NewFunctionsforDEP.R")
+```
+
+## Create the output folder
+```{r outputFolder, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Define the output paths
+outputPaths = c("./Results/AstroEVs/VolcanoPlot",
+                "./Results/AstroEVs/KEGG",
+                "./Results/AstroEVs/GO_BP",
+                "./Results/AstroEVs/GO_MF",
+                "./Results/AstroEVs/GO_CC",
+                "./Results/AstroEVs/Reactome",
+                "./Results/AstroEVs/WikiPathways",
+                "./Results/AstroEVs/SubCellularLocation",
+                "./Results/AstroEVs/MitoLocation",
+                "./Results/AstroEVs/MitoPathway",
+                "./Results/AstroEVs/SinglePlots",
+                "./Results/mEVs",
+                "./Results/mEVs/SubCellularLocation",
+                "./Results/mEVs/MitoLocation",
+                "./Results/mEVs/MitoPathway",
+                "./Results/mEVs/SubMitoPathway")
+
+# Create the output paths
+for (x in outputPaths) {
+  if (!dir.exists(x)) {
+    dir.create(x, recursive = TRUE)
+  }
+}
+
+# Set the output paths
+outputDirAstroEV = "./Results/AstroEVs/"
+outputDirmEVs = "./Results/mEVs/"
+```
+
+## Setting Data Formatting Parameters
+```{r dataFormatParameters, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Preprocessing setup
+col_range_AstroEVData = 1:3
+row_range_AstroEVData = 3:12
+sampleNameColumns = 1
+proteinNameColumns = 1
+samplesIdentifier = "_"
+primaryProteinID = "Primary.Gene.name"
+secondaryProteinID = "Ids"
+metaColNames_AstroEVData = c("Sample", "Group", "replicate")
+relevelVariables_AstrosEVData = data.frame(Group = "WT_MEV")
+```
+
+## Setting Enrichment Analysis Parameters
+```{r dataFormatParameters, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Define the formula for the multiple linear model analysis
+formulades_BrainEVData = formula(~ 0 + EVs * Age * Genotype)
+
+# Define the contrast and the analysis thresholds
+contrastList_AstrosEVData = "AD_MEV_vs_WT_MEV"
+alphaSigTresholdSim = 0.05
+fcTresholdSim = 1.5
+```
+
+## Create custom dictionaries for protein IDs not found in databases
+```{r manDict, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+translatorMsUni2MsEn = data.frame(
+  UNIPROT = c("O08756", "O55126", "O70493", "P01631", "P02535", "P08556",
+              "P36536", "P42225", "P51912", "Q05722", "Q05793", "Q60932",
+              "Q91834", "Q6DFV3", "Q6ZQA0", "Q8CFI0", "Q8CIE0", "Q8CIZ8",
+              "Q99LD4", "Q9JLJ2", "Q9WV80", "Q4KML4", "Q69Z98", "Q9JIS7",
+              "Q80TT8", "Q9Z2H5", "Q8R313", "Q8K012", "O55023" , "P05555",
+              "Q66GT5", "Q8BQZ4", "Q60870", "P28571", "P15508", "Q8R3T5",
+              "Q9WTQ8", "Q9R088", "Q71LX4" , "Q5SSH7"),
+  ENTREZID = c("15108", "14467", "55988", "", "16661", "18176", "20224",
+               "20846", "20514", "12839", "15530", "22333", "20648", "71435",
+               "235627", "83814", "380780", "22371", "209318", "56752", "56440",
+               "73112", "75770", "54652", "78309", "13821", "107371",
+               "214459", "55980", "16409", "66461", "228850", "13476", "14664",
+               "20741", "217517", "53600", "57813", "70549", "195018"),
+  stringsAsFactors = FALSE)
+
+translatorMs2Hu = data.frame(
+  "10090_ID" = c("17711", "16333", "16661", "66039", "12867", "14860", "17118",
+                 "17836", "17999", "15382", "11615", "20195", "22004","12540",
+                 "12848", "20320", "17174", "11958", "16681", "26931", "19012",
+                 "19266", "75734", "107260", "229279","13358", "212307",
+                 "69550", "12864", "71775", "71770",  "109754", "68337",
+                 "28250", "96875", "11426", "11685","109676", "213043", "67126",
+                 "68554", "12859", "320827", "56066", "54004", "13518", "57778",
+                 "214459", "53320", "14933", "15129", "15289", "15496",
+                 "245525", "15944", "68239", "53622", "16709", "17706",
+                 "595136", "74103", "18169", "64011", "18537", "27205", "19047",
+                 "260297", "19231", "69202", "68436", "54217", "20091",
+                 "235636", "13358", "229285", "58212", "20905", "19240",
+                 "68512", "22003", "73178"),
+  "9606_ID" = c("4519", "3630", "3858", "80195", "1350", "2941", "4082", "5858",
+                "4734", "3178", "191", "6282", "7169", "998", "9318", "27020",
+                "5648", "521", "3849", "5527", "8611", "5789", "56947", "55611",
+                "220988", "6576", "10982", "684", "1345", "", "163", "1727",
+                "1397", "6579", "10216", "23499", "", "287", "344454", "514",
+                "100505876", "1329", "57482", "6373",  "1730", "667", "752",
+                "54874", "2346", "2710", "3043", "3146", "3283", "", "345611",
+                "", "3891", "3895", "4509", "4725", "10529", "", "4900",
+                "5110", "5420", "5501", "80863", "8637", "5763", "6164",
+                "25873", "6189", "83597", "6576", "23111", "222183", "412",
+                "9168", "401505", "7168", "8976" ),
+  "10090" = c("mt-Cyb", "Ins1", "Krt-10", "Tmem254", "Cox7c", "Gsta4", "Marcks",
+              "Mug1", "Nedd4", "Hnrnpa1", "Ahcyl", "S100a11", "Tpm2", "Cdc42",
+              "Cops2", "Nptn", "Masp1", "Atp5me", "Krt2", "Ppp2r5c", "Plpp1",
+              "Ptprd", "Mff", "Otub1", "Hnrnpa3", "Slc25a1", "Mapre2", "Bst2",
+              "Cox6c", "Inhca", "Ap2b1", "Cyb5r3", "Crip2", "Slco1a4", "Prg4",
+              "Macf1", "Alox12e", "Ank2", "Aox2", "Atp5f1e", "Cebpzos", "Cox5b",
+              "Cracd", "Cxcl11", "Diaph2", "Dst", "Fmnl1", "Fnbp1l", "Folh1",
+              "Gk", "Hbb-b1", "Hmgb1", "Hsd3b5", "Hsf3", "Irgm1", "Krt42",
+              "Krt85", "Ktn1", "mt-Atp8", "Ndufs5", "Nebl", "Npy6r", "Nrgn",
+              "Pcmt1", "Podxl", "Ppp1cc", "Prrt1", "Ptma", "Ptms", "Rpl34",
+              "Rpl36", "Rps3a1", "Rtp3", "Slc25a1", "Spart", "Srrm3","Sts",
+              "Tmsb10", "Tomm5", "Tpm1", "Wasl"),
+  "9606" = c("MT-CYB", "INS", "KRT-10", "TMEM254", "COX7C", "GSTA4", "MARCKS",
+             "PZP", "NEDD4", "HNRNPA1", "AHCY", "S100A11", "TPM2", "CDC42",
+             "COPS2", "NPTN", "MASP1", "ATP5ME", "KRT2", "PPP2R5C", "PLPP1",
+             "PTPRD", "MFF", "OTUB1", "HNRNPA3", "SLC25A1", "MAPRE2", "BST2",
+             "COX6C", "", "AP2B1", "CYB5R3", "CRIP2", "SLCO1A2", "PRG4",
+             "MACF1", "", "ANK2", "AOX2P", "ATP5F1E", "CEBPZOS", "COX5B",
+             "CRACD", "CXCL11", "DIAPH2", "DST", "FMNL1", "FNBP1L", "FOLH1",
+             "GK", "HBB", "HMGB1", "HSD3B1", "", "IRGM", "", "KRT85", "KTN1",
+             "MT-ATP8", "NDUFS5", "NEBL", "", "NRGN", "PCMT1", "PODXL",
+             "PPP1CC", "PRRT1", "PTMA", "PTMS", "RPL34", "RPL36", "RPS3A",
+             "RTP3", "SLC25A1", "SPART", "SRRM3", "STS", "TMSB10", "TOMM5",
+             "TPM1", "WASL"),
+  stringsAsFactors = FALSE, check.names = FALSE)
+```
+
+# DATA PREPARATION
+
+## Import and Preprocess the Data
+```{r dataImportation, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Import astroglial mEVs data
+proteomicsAstroEVData="./Data/OriginalData/OriginalData_MouseAstroglialEVs.xlsx"
+
+# Preprocessing astroglial mEVs data
+AstrosEVData = t(read_excel(proteomicsAstroEVData, col_names = FALSE))
+#AstrosEVData = AstrosEVData[-nrow(AstrosEVData),]
+#AstrosEVData = AstrosEVData[-nrow(AstrosEVData),]
+
+# Extract the metadata from mEVs data
+metaProtDataAstrosEVData = createMetaData(AstrosEVData, col_range_AstroEVData,
+                                          row_range_AstroEVData,
+                                          sampleNameColumns,
+                                          metaColNames_AstroEVData)
+
+# Factorize the groups and relevel
+metaProtDataAstrosEVData = relevelMetaData(metaProtDataAstrosEVData,
+                                           relevelVariables_AstrosEVData)
+
+# Generate the expDesign data frames
+expDesignAstrosEV = createExpDesign(metaProtDataAstrosEVData,
+                                    relevelVariables_AstrosEVData)
+expDesignAstrosEV$replicate = c("1","2","3","4","5","1","2","3","4","5")
+
+# Generate the proteomic data frames
+protDataAstrosEV = createProteinData(AstrosEVData,
+                                     proteinNameColumns, col_range_AstroEVData)
+```
+
+# ENRICHMENT ANALYSIS
+
+## Process the data for DEP analysis
+```{r DEPProcessing, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Create the proteins_unique data frame for DEP
+proteins_unique_AstrosEV = make_unique(protDataAstrosEV, primaryProteinID,
+                                       secondaryProteinID, delim = ";")
+
+dataColumns_AstrosEV = grep(samplesIdentifier, colnames(protDataAstrosEV))
+
+proteins_unique_AstrosEV[, dataColumns_AstrosEV]= 
+  proteins_unique_AstrosEV[, dataColumns_AstrosEV] %>%
+  mutate(across(colnames(proteins_unique_AstrosEV[, dataColumns_AstrosEV]),
+                ~ as.numeric(as.character(.))))
+```
+
+## Split data for DEP and presence/absence analysis according to NA values
+```{r dataSplit, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Identify proteins with only NA in one of the groups
+mnarValues = NULL
+for(x in 1:nrow(proteins_unique_AstrosEV)){
+  if(all(is.na(proteins_unique_AstrosEV[x, 3:7]))){
+    mnarValues = c(mnarValues, x)
+  }
+  if(all(is.na(proteins_unique_AstrosEV[x, 8:12]))){
+    mnarValues = c(mnarValues, x)
+  }
+}
+mnarProteins = rep(FALSE, nrow(proteins_unique_AstrosEV))
+mnarProteins[unique(mnarValues)] = TRUE
+
+# Split the data accorging to NA presence
+PAProteins = proteins_unique_AstrosEV[mnarProteins,]
+iProteins = proteins_unique_AstrosEV[!mnarProteins, ]
+```
+
+## DEP analysis
+```{r DEP, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Apply DEP to the proteins with almost one value in each group
+set.seed(25)
+SEData_AstrosEV = make_se(iProteins, dataColumns_AstrosEV, expDesignAstrosEV,
+                          colnames(relevelVariables_AstrosEVData))
+SEDataImp_AstrosEV = impute(SEData_AstrosEV, fun = "MinProb", q = 0.05,
+                            MARGIN = 2L)
+
+SEDataImp_NormMatrix = vsn::vsnMatrix(2 ^ assay(SEDataImp_AstrosEV))
+assay(SEDataImp_AstrosEV) = vsn::predict(SEDataImp_NormMatrix, 2 ^ assay(SEDataImp_AstrosEV))
+
+SEDataImpNormAnalyzed_AstrosEV = test_diff(SEDataImp_AstrosEV,
+                                           type = "control", control = "WT_MEV")
+sigProt_AstrosEV = add_rejections(SEDataImpNormAnalyzed_AstrosEV,
+                                  alpha = alphaSigTresholdSim,
+                                  lfc = log2(fcTresholdSim))
+```
+
+## Presence/Abscence analysis
+```{r PAAnalysis, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Calculate log2FC and centered values (with LOD) in PA proteins
+allProtData = as.matrix(proteins_unique_AstrosEV[, dataColumns_AstrosEV])
+allPAPProtData = as.matrix(PAProteins[, dataColumns_AstrosEV])
+rowNamesAllIProtDataImp = PAProteins[,2]
+allPAPProtDataImp = allPAPProtData
+minValueGlobal = min(allProtData[allProtData > 0], na.rm = TRUE)
+minValuesMatrix = matrix(minValueGlobal,
+                         nrow = nrow(allPAPProtDataImp),
+                         ncol = ncol(allPAPProtDataImp))
+NAValuesAllIProtDataImp = is.na(allPAPProtDataImp) | allPAPProtDataImp <= 0
+allPAPProtDataImp[NAValuesAllIProtDataImp] =
+  minValuesMatrix[NAValuesAllIProtDataImp]
+
+allPAPProtDataImp = log2(allPAPProtDataImp)
+rownames(allPAPProtDataImp) = rowNamesAllIProtDataImp
+
+# Fisher analysis of PA proteins
+PAvalues = !is.na(PAProteins[, dataColumns_AstrosEV]) &
+  PAProteins[, dataColumns_AstrosEV] > 0
+
+PAPValues = apply(PAvalues, 1, function(d){
+  statsTable = table(d, expDesignAstrosEV$Group)
+  fisher.test(statsTable)$p.value
+})
+
+names(PAPValues) = rowNamesAllIProtDataImp
+FDRPAPValues = p.adjust(PAPValues, method = "fdr")
+names(FDRPAPValues) = rowNamesAllIProtDataImp
+
+# Create SE object with the PA protein results
+PA_rd = DataFrame(
+  name               = rowNamesAllIProtDataImp,
+  Ids                = PAProteins$Ids,
+  Primary.Gene.name  = PAProteins$Primary.Gene.name,
+  ID                 = PAProteins$ID,
+  imputed            = rep(TRUE, nrow(PAProteins)),
+  num_NAs            = rowSums(is.na(allPAPProtData))
+)
+rownames(PA_rd) = rowNamesAllIProtDataImp
+
+SE_PA = SummarizedExperiment(
+  assays = list(counts = allPAPProtDataImp),
+  rowData = PA_rd,
+  colData = expDesignAstrosEV
+)
+
+# VSN normalization of SE PA object
+assay(SE_PA) = vsn::predict(SEDataImp_NormMatrix, 2 ^ assay(SE_PA))
+  
+# Calculate SE PA metrics
+ADSamples = which(expDesignAstrosEV$Group == "AD_MEV")
+WTSamples = which(expDesignAstrosEV$Group == "WT_MEV")
+PAmeanAD = rowMeans(assay(SE_PA)[, ADSamples])
+PAmeanWT = rowMeans(assay(SE_PA)[, WTSamples])
+PAMeanProt = rowMeans(assay(SE_PA))
+log2PAFC = PAmeanAD - PAmeanWT
+PAADCentered = PAmeanAD - PAMeanProt
+PAWTCentered = PAmeanWT - PAMeanProt
+
+# Reconstruct SE PA object
+PA_rd = DataFrame(
+  name               = rowNamesAllIProtDataImp,
+  Ids                = PAProteins$Ids,
+  Primary.Gene.name  = PAProteins$Primary.Gene.name,
+  ID                 = PAProteins$ID,
+  imputed            = rep(TRUE, nrow(PAProteins)),
+  num_NAs            = rowSums(is.na(allPAPProtData)),
+  AD_MEV_vs_WT_MEV_CI.L = rep(NA_real_, nrow(PAProteins)),
+  AD_MEV_vs_WT_MEV_CI.R = rep(NA_real_, nrow(PAProteins)),
+  AD_MEV_vs_WT_MEV_diff  = log2PAFC,
+  AD_MEV_vs_WT_MEV_p.adj = FDRPAPValues,
+  AD_MEV_vs_WT_MEV_p.val = PAPValues,
+  significant            = FDRPAPValues < alphaSigTresholdSim,
+  AD_MEV_vs_WT_MEV_significant = FDRPAPValues < alphaSigTresholdSim
+)
+rownames(PA_rd) = rowNamesAllIProtDataImp
+
+SE_PANorm = SummarizedExperiment(
+  assays = list(counts = assay(SE_PA)),
+  rowData = PA_rd,
+  colData = expDesignAstrosEV
+)
+```
+
+## Combine DEP and PAP analysis and save the results
+```{r combineDEPPAP, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Combine DEP and PAP analysis and save the results
+assayNames(sigProt_AstrosEV) = "counts"
+assayNames(SE_PANorm) = "counts"
+SE_comb = rbind(sigProt_AstrosEV, SE_PANorm)
+sigProt_AstrosEV = SE_comb
+resultsProt_AstrosEV = get_results(SE_comb)
+write.csv(resultsProt_AstrosEV, paste0(outputDirAstroEV,"statsData.csv"))
+```
+
+## RAW INTENSITIES SE
+```{r rawIntensities, echo=FALSE}
+
+valid_proteins_astros <- rownames(sigProt_AstrosEV)
+
+raw_matrix_astros <- proteins_unique_AstrosEV[match(valid_proteins_astros, proteins_unique_AstrosEV$name), dataColumns_AstrosEV]
+raw_matrix_astros <- as.matrix(raw_matrix_astros)
+rownames(raw_matrix_astros) <- valid_proteins_astros
+colnames(raw_matrix_astros) <- colnames(sigProt_AstrosEV)
+
+sigProt_AstrosEV_RAW <- SummarizedExperiment::SummarizedExperiment(
+  assays = list(raw = raw_matrix_astros),
+  colData = colData(sigProt_AstrosEV)
+)
+```
+
+
+# RESULTS OF THE ENRICHMENT ANALYSIS
+
+## Generate Donut Plot
+```{r DonutPlot, include=FALSE}
+
+# Generate Donut Plot
+proteinsPercentage = data.frame(type = c("Present in both groups",
+                                         "Absent from one of the groups"),
+  number = c(nrow(iProteins), nrow(PAProteins)))
+
+dir2save = paste0(outputDirAstroEV, "DonutPlot.tiff")
+tiff(filename = dir2save, width = 4500, height = 4250, res = 300)
+
+AstroEVDonutPlot = ggplot(proteinsPercentage, aes(x = 2, y = number,
+                                                  fill = type)) +
+  geom_bar(stat = "identity", width = 1, color = "black") +
+  coord_polar(theta = "y", start = 0) +
+  xlim(0.1, 3) +
+  theme_void() +
+  theme(legend.position = "top",
+        legend.text = element_text(size = 60),
+        legend.title = element_text(size = 70, face = "bold",
+                                    margin = margin(b = 40),
+                                    hjust = 0.5), 
+        legend.box.margin = margin(20, 0, 0, 0),
+        legend.box.spacing = unit(-0.5, "cm")) +
+    labs(title = "",
+       fill = "Total identified proteins") +
+  geom_text(aes(label = paste0(round(number, 1)),x = 2.9),
+            position = position_stack(vjust = 0.5),
+            color = "black", size = 30) +
+   scale_fill_manual(values = c("Absent from one of the groups" = "#870052",
+                               "Present in both groups" = "dimgray")) +
+  guides(fill = guide_legend(direction = "vertical"))
+print(AstroEVDonutPlot)
+dev.off()
+```
+
+## Generate and save PCA and PLSDA 3D
+```{r PCA, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Generate and save PCA
+dir2save = paste0(outputDirAstroEV, "PCA.tiff")
+tiff(filename = dir2save, width = 4500, height = 4250, res = 300)
+AstroEVPCA = plot_pca(sigProt_AstrosEV, x = 1, y = 2, n = 1305,
+                      indicate = "Group", point_size = 20) +
+  scale_color_manual(values=c("dimgray","#870052"),
+                     labels = c("WT mitoEVs", "AD mitoEVs") ) +
+  theme(legend.position="top") +
+  labs(colour=NULL, title = "Principal Component Analysis") +
+  theme_void() +
+  scale_x_continuous(limits = c(-50, 30), breaks = seq(-50, 30, 10)) +
+  scale_y_continuous(limits = c(-40, 30), breaks = seq(-40, 30, 10)) +
+  theme(
+    plot.title   = element_text(size = 50, face = "bold", hjust = 0.5),
+    legend.box.margin = margin(25, 0, 0, 0),
+    legend.box.spacing = unit(1, "cm"),
+    axis.title.x = element_text(size = 40, margin = margin(t = 20)),
+    axis.title.y = element_text(size = 40, angle = 90,
+                                margin = margin(r = 20)),
+    axis.text    = element_text(size = 35),
+    legend.position = "top",
+    legend.text  = element_text(size = 45),
+    panel.border = element_rect(color = "black", fill = NA, size = 5) ,
+    plot.margin = margin(100, 100, 100, 100)
+  ) +
+  guides(colour = guide_legend(
+    ncol = 2, byrow = TRUE,
+    label.theme = element_text(size = 45, margin = margin(r = 30)), 
+    keywidth = unit(3, "cm") 
+  )) +
+  coord_fixed(ratio = 1.1) 
+print(AstroEVPCA)
+dev.off()
+
+# Generate and save PCA
+dir2save = paste0(outputDirAstroEV, "PCA_Replicate.tiff")
+tiff(filename = dir2save, width = 4500, height = 4250, res = 300)
+AstroEVPCA = plot_pca(sigProt_AstrosEV, x = 1, y = 2, n = 1305,
+                      indicate = "replicate", point_size = 20) +
+  scale_color_manual(values=c("darkblue","#870052", "darkgreen", "darkgray", "darkorange"),
+                     labels = c("1", "2", "3", "4", "5") ) +
+  theme(legend.position="top") +
+  labs(colour=NULL, title = "Principal Component Analysis") +
+  theme_void() +
+  scale_x_continuous(limits = c(-50, 30), breaks = seq(-50, 30, 10)) +
+  scale_y_continuous(limits = c(-40, 30), breaks = seq(-40, 30, 10)) +
+  theme(
+    plot.title   = element_text(size = 50, face = "bold", hjust = 0.5),
+    legend.box.margin = margin(25, 0, 0, 0),
+    legend.box.spacing = unit(1, "cm"),
+    axis.title.x = element_text(size = 40, margin = margin(t = 20)),
+    axis.title.y = element_text(size = 40, angle = 90,
+                                margin = margin(r = 20)),
+    axis.text    = element_text(size = 35),
+    legend.position = "top",
+    legend.text  = element_text(size = 45),
+    panel.border = element_rect(color = "black", fill = NA, size = 5) ,
+    plot.margin = margin(100, 100, 100, 100)
+  ) +
+  guides(colour = guide_legend(
+    ncol = 3, byrow = TRUE,
+    label.theme = element_text(size = 45, margin = margin(r = 30)), 
+    keywidth = unit(3, "cm") 
+  )) +
+  coord_fixed(ratio = 1.1) 
+print(AstroEVPCA)
+dev.off()
+
+
+# Generate and save PLSDA 3D
+XAstroEV = t(assay(sigProt_AstrosEV))
+YAstroEV = factor(colData(sigProt_AstrosEV)$condition)
+colorsAstroEV = c("WT_MEV" = "dimgray", "AD_MEV" = "#870052")
+plsdaAstroEV = plsda(XAstroEV, YAstroEV, ncomp = 3)
+plotIndiv(plsdaAstroEV,
+          comp = c(1,2,3),
+          group = YAstroEV,
+          ind.names = FALSE,
+          legend = FALSE,
+          style = "3d",
+          col = colorsAstroEV)
+legend3d("bottomright",
+         legend = levels(YAstroEV),
+         pch = 16,
+         col = colorsAstroEV,
+         cex = 1.5,
+         text.font = 2)
+view3d(theta = 10, phi = -20, fov = -25)
+
+rgl.postscript(file.path(outputDirAstroEV, "PLSDA3D.pdf"), "pdf")
+saveWidget(rgl::rglwidget(), file.path(outputDirAstroEV, "PLSDA3D.html"),
+           selfcontained = TRUE)
+```
+
+## Generate and save correlation plot
+```{r corplot, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Generate and save correlation plot
+dir2save = paste0(outputDirAstroEV, "CorrelationPlot.tiff")
+tiff(filename = dir2save, width = 4250, height = 4250, res = 300)
+
+corSigProt_AstrosEV = sigProt_AstrosEV
+colnames(corSigProt_AstrosEV) = c("AD mitoEVs 1", "AD mitoEVs 2",
+                                   "AD mitoEVs 3", "AD mitoEVs 4",
+                                   "AD mitoEVs 5", "WT mitoEVs 1",
+                                   "WT mitoEVs 2","WT mitoEVs 3",
+                                   "WT mitoEVs 4","WT mitoEVs 5")
+cor_mat = cor(assay(corSigProt_AstrosEV))
+
+AstroEVPlotCor = Heatmap(cor_mat,
+        col = circlize::colorRamp2(c(0.5, 0.75, 1.0), c("darkgreen","white", "#870052")),
+        cluster_rows = TRUE,
+        cluster_columns = TRUE,
+        row_names_gp = gpar(fontsize = 18, fontface = "bold",
+                            fontfamily = "sans"),
+        column_names_gp = gpar(fontsize = 18, fontface = "bold",
+                               fontfamily = "sans"),
+        heatmap_legend_param = list(
+          title = "Pearson Correlation",
+          title_gp = gpar(fontsize = 24, fontface = "bold"),
+          labels_gp = gpar(fontsize = 24),
+          legend_direction = "horizontal"
+        ))
+draw(AstroEVPlotCor, heatmap_legend_side = "bottom")
+dev.off()
+```
+
+## Generate and save heatmap
+```{r heatmap, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Generate and save heatmap
+colHeatMap = colorRampPalette(c("darkgreen", "white", "#4F0433"))(10)
+colLegend  = circlize::colorRamp2(
+  seq(-10, 10, length.out = length(colHeatMap)),
+  colHeatMap
+)
+
+dir2save = paste0(outputDirAstroEV, "Heatmap.tiff")
+tiff(filename = dir2save, width = 1750, height = 4500, res = 300)
+heatmap_AstrosEV = plot_heatmap(
+  corSigProt_AstrosEV,
+  type = "centered",
+  kmeans = FALSE,
+  col_limit = 10,
+  col = colHeatMap,
+  show_row_names = TRUE,
+  row_font_size = 25,
+  col_font_size = 25,
+  plot = FALSE,
+  show_row_dend = FALSE,
+  seed = 25,
+  row_title_gp = gpar(fontsize = 25)
+)
+heatmap_AstrosEV = draw(heatmap_AstrosEV, show_heatmap_legend = FALSE)
+rowsHeatmap = row_order(heatmap_AstrosEV)
+legendHeatmap_AstrosEV = Legend(
+  title = NULL,
+  col_fun = colLegend,
+  at = c(-10, -5, 0, 5, 10),
+  labels_gp = gpar(fontsize = 24),
+  direction = "vertical",
+  grid_height = unit(6, "mm"),
+  grid_width  = unit(15, "mm")
+)
+pushViewport(viewport(x = unit(1.45, "npc"),
+                      y = unit(-0.46, "npc"),
+                      just = c("right", "bottom")))
+draw(legendHeatmap_AstrosEV, just = c("right", "bottom"))
+
+dev.off()
+
+```
+
+## Generate and save volcano plot
+```{r volcanoPlot, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Generate and save volcano plot
+for (z in contrastList_AstrosEVData){
+  dir2save = paste0(outputDirAstroEV,"VolcanoPlot/Volcano_", z, ".tiff")
+  tiff(filename = dir2save, width = 4250, height = 4250, res = 300)
+
+  volcanoPlot = plot_volcano(sigProt_AstrosEV, contrast = z, label_size = 10,
+                             add_names = TRUE, plot = TRUE, adjusted = TRUE) +
+    annotate("rect", xmin = -Inf, xmax = 0, ymin = -Inf, ymax = Inf,
+             fill= "dimgray", alpha = 0.08) +
+    annotate("rect", xmin = 0, xmax = Inf, ymin = -Inf, ymax = Inf,
+             fill = "#870052", alpha = 0.08) +
+    scale_color_manual(values = c("FALSE" = "#FF111a", "TRUE" = "#1111a1"))
+
+  print(volcanoPlot)
+  dev.off()
+}
+```
+
+## CUSTOM TERM DATABASES
+
+# Translate all the proteins IDs
+```{r translateTotal, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Translate all the proteins IDs
+contrastsTranslator_AstrosEV = translatorDb(resultsProt_AstrosEV$ID)
+
+# Translate the databases
+HPAdf  = read.delim("./Data/Data2CustomTermsDatabases/HPA_subcellular_location.tsv",)
+subcellIds = HPAdf$Gene.name
+transHPAdf = translatorHumanSym(subcellIds)
+
+proteomo_df = read_excel("./Data/Data2CustomTermsDatabases/PMID_39742809_ProteomoDB.xlsx",
+                         sheet = "subcell_annotation_summary")
+proteomo_expanded = proteomo_df %>% separate_rows(`Majority protein IDs`, sep = ";")
+proteomoIds = proteomo_expanded$`Majority protein IDs`
+transProteomo = translatorHumanUni(proteomoIds)
+
+uniprot_df  = read.delim("./Data/Data2CustomTermsDatabases/UNIPROTkb_taxonomy_id_9606_2025_03_12.tsv")
+uniprotIds = uniprot_df$Entry
+transuniprot = translatorHumanUni(uniprotIds)
+
+mitocarta_df = read_excel("./Data/Data2CustomTermsDatabases/Mouse_MitoCarta3_Location.xls", 
+             sheet = "A Mouse MitoCarta3.0")
+
+mitocartaIds = data.frame(`10090_ENTREZID` = mitocarta_df$MouseGeneID,
+                          `9606_ENTREZID` = mitocarta_df$HumanOrthologGeneID,
+                          `10090_SYMBOL` = mitocarta_df$Symbol, 
+                          check.names = FALSE)
+
+mitocartaIdsTranslate = translatorMitoCarta(mitocartaIds)
+mitocartaIdsTranslate[mitocartaIdsTranslate == "NULL"] = NA
+
+translatorALL = bind_rows(contrastsTranslator_AstrosEV, transHPAdf, transProteomo, transuniprot, mitocartaIdsTranslate)
+translatorALLUnique = translatorALL %>% distinct(`10090_ENTREZID`, .keep_all = TRUE)
+
+```
+
+# Custom Subcellular location database
+```{r subcelDB, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Generate subcellular location database
+proteomicsLocalizationDbALL = createProteomicsLocalizationDb(
+  file_subcell =
+    "./Data/Data2CustomTermsDatabases/HPA_subcellular_location.tsv",
+  file_proteomo =
+    "./Data/Data2CustomTermsDatabases/PMID_39742809_ProteomoDB.xlsx",
+  file_uniprot =
+    "./Data/Data2CustomTermsDatabases/UNIPROTkb_taxonomy_id_9606_2025_03_12.tsv",
+  translator = translatorALLUnique,
+  
+  translatorHumanUniprot = "9606_UNIPROT",
+  translatorMouseEntrez = "10090_ENTREZID",
+  translatorMouseUniprot = "10090_UNIPROT",
+  translatorHumanSymbol = "9606_SYMBOL")
+
+proteomicsLocalizationDb = proteomicsLocalizationDbALL$gene_sets
+```
+
+# Custom Mitocarta location database
+```{r mitocartaLocDB, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#Generate mitocarta location database
+mitoCartaProts =
+  read_excel("./Data/Data2CustomTermsDatabases/Mouse_MitoCarta3_Location.xls", 
+             sheet = "A Mouse MitoCarta3.0")
+mitoCartaProtsEntrez =
+  data.frame(mEntrez = mitoCartaProts$MouseGeneID,
+             Location =mitoCartaProts$MitoCarta3.0_SubMitoLocalization)
+mitoCartaProtsSymbol =
+  data.frame(mSymbol = mitoCartaProts$Symbol,
+             Location = mitoCartaProts$MitoCarta3.0_SubMitoLocalization)
+gene_setsMito = mitoCartaProtsEntrez %>% group_by(Location) %>%
+  summarise(genes = list(unique(mEntrez))) %>% deframe()
+```
+
+# Custom Mitocarta pathway database
+```{r mitopathway, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Create MitoCarta Pathways database
+mitoCartaPath = read_excel(
+  "./Data/Data2CustomTermsDatabases/Mouse_MitoCarta3_Pathways.xls",
+  sheet = "C MitoPathways")
+mitoCartaPathLong = mitoCartaPath %>% 
+  separate_rows(Genes, sep = ",\\s*") %>%  
+  dplyr::select(Gene = Genes, MitoPathway)
+translatorMsSym2MsEntrez = data.frame("SYMBOL" = mitocartaIdsTranslate$`10090_SYMBOL`,
+                                      "ENTREZID" = mitocartaIdsTranslate$`10090_ENTREZID`)
+mitoCartaPathLongmEntrez = translate_ID(mitoCartaPathLong$Gene, "SYMBOL", "ENTREZID",
+                                           source_taxon = 10090, target_taxon = 10090,
+                                         species_db = org.Mm.eg.db, manual_map = translatorMsSym2MsEntrez)
+mitoCartaPathLong$mEntrez = mitoCartaPathLongmEntrez$`10090_ENTREZID`[match(mitoCartaPathLong$Gene, mitoCartaPathLongmEntrez$original)]
+mitoCartaPathLong$mEntrez = mitoCartaPathLongmEntrez$`10090_ENTREZID`
+MitoCartaPathLongEntrez = mitoCartaPathLong
+names(MitoCartaPathLongEntrez)[names(MitoCartaPathLongEntrez) == "MitoPathway"] = "Location"
+MitoCartaPathLongEntrez = MitoCartaPathLongEntrez %>% filter(!is.na(mEntrez))
+gene_setsMitoPath = MitoCartaPathLongEntrez %>% 
+  group_by(Location) %>% 
+  summarise(genes = list(unique(mEntrez))) %>%
+  deframe()
+
+mitoCartaPath2 = read_excel(
+  "./Data/Data2CustomTermsDatabases/Mouse_MitoCarta3_Pathways_SecondCategory.xls",
+  sheet = "C MitoPathways")
+mitoCartaPathLong2 = mitoCartaPath2 %>% 
+  separate_rows(Genes, sep = ",\\s*") %>%  
+  dplyr::select(Gene = Genes, MitoPathway)
+translatorMsSym2MsEntrez = data.frame("SYMBOL" = mitocartaIdsTranslate$`10090_SYMBOL`,
+                                      "ENTREZID" = mitocartaIdsTranslate$`10090_ENTREZID`)
+mitoCartaPathLongmEntrez2 = translate_ID(mitoCartaPathLong2$Gene, "SYMBOL", "ENTREZID",
+                                           source_taxon = 10090, target_taxon = 10090,
+                                         species_db = org.Mm.eg.db, manual_map = translatorMsSym2MsEntrez)
+mitoCartaPathLong2$mEntrez = mitoCartaPathLongmEntrez2$`10090_ENTREZID`[match(mitoCartaPathLong2$Gene, mitoCartaPathLongmEntrez2$original)]
+mitoCartaPathLong2$mEntrez = mitoCartaPathLongmEntrez2$`10090_ENTREZID`
+MitoCartaPathLongEntrez2 = mitoCartaPathLong2
+names(MitoCartaPathLongEntrez2)[names(MitoCartaPathLongEntrez2) == "MitoPathway"] = "Location"
+MitoCartaPathLongEntrez2 = MitoCartaPathLongEntrez2 %>% filter(!is.na(mEntrez))
+gene_setsMitoPath2 = MitoCartaPathLongEntrez2 %>% 
+  group_by(Location) %>% 
+  summarise(genes = list(unique(mEntrez))) %>%
+  deframe()
+```
+
+## PATHWAY ENRICHMENT ANALYSIS
+
+# Calculate Enrichment Score and translate to Entrez ID the proteins ID
+```{r ESandTranslate, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+## Calculate Enrichment Score
+contrastES_AstrosEV = calculateES(resultsProt_AstrosEV, ID,
+                                  contrastList_AstrosEVData)
+
+## Translate the Uniprot ID to Entrez ID in the Enrichment Score list
+contrastEntrez_AstrosEV = translate_ID(resultsProt_AstrosEV$ID,
+                                       "UNIPROT",
+                                       "ENTREZID",
+                                       species_db = org.Mm.eg.db,
+                                       manual_map = translatorMsUni2MsEn,
+                                       oriESData="_ES",
+                                       contrastList = contrastList_AstrosEVData,
+                                       contrastESData = contrastES_AstrosEV)
+
+contrastEntrez_AstrosEV$AD_MEV_vs_WT_MEV_ESENTREZID =
+  contrastEntrez_AstrosEV$AD_MEV_vs_WT_MEV_ESENTREZID[
+    names(contrastEntrez_AstrosEV$AD_MEV_vs_WT_MEV_ESENTREZID) != ""]
+```
+
+# KEGG Analysis
+```{r KEGG, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Significant KEGG Analysis
+KEGGEnrichment_AstrosEV = runEnrichmentAnalysis(contrastES_AstrosEV,
+                                                databases = "KEGG",
+                                                out_dir =
+                                                  paste0(outputDirAstroEV,
+                                                         "/KEGG/"),
+                                                OrgDb = org.Mm.eg.db,
+                                                organism = "mmu",
+                                                keyType = "uniprot",
+                                                minGSSize = 3,
+                                                maxGSSize = 30000,
+                                                pAdjustMethod = "fdr",
+                                                pvalueCutoff = 0.150,
+                                                verbose = FALSE,
+                                                nPermSimple = 100000,
+                                                eps = 0.00000001,
+                                                adjpval = TRUE,
+                                                widthValue = 4250, 
+                                                heightValue = 4250,
+                                                base_size = 3)
+
+# Total KEGG Analysis
+KEGGEnrichment_AstrosEV = runEnrichmentAnalysis(contrastES_AstrosEV,
+                                                databases = "KEGG",
+                                                out_dir =
+                                                  paste0(outputDirAstroEV,
+                                                         "/KEGG/nopVal/"),
+                                                OrgDb = org.Mm.eg.db,
+                                                organism = "mmu",
+                                                keyType = "uniprot",
+                                                minGSSize = 3,
+                                                maxGSSize = 30000,
+                                                pAdjustMethod = "fdr",
+                                                pvalueCutoff = 1,
+                                                verbose = FALSE,
+                                                nPermSimple = 100000,
+                                                eps = 0.00000001,
+                                                adjpval = TRUE,
+                                                widthValue = 4250, 
+                                                heightValue = 4250,
+                                                base_size = 3)
+```
+
+# GOBP Analysis
+```{r GOBP, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# GOBP Analysis
+GOBPEnrichment_AstrosEV = runEnrichmentAnalysis(contrastEntrez_AstrosEV,
+                                                databases = "GO_BP",
+                                                out_dir = 
+                                                  paste0(outputDirAstroEV,
+                                                         "/GO_BP/"),
+                                                OrgDb = org.Mm.eg.db,
+                                                organism = "mmu",
+                                                keyType = "ENTREZID",
+                                                minGSSize = 3,
+                                                maxGSSize = 30000,
+                                                pAdjustMethod = "fdr",
+                                                pvalueCutoff = 0.15,
+                                                verbose = FALSE,
+                                                nPermSimple = 100000,
+                                                eps = 0.00000001,
+                                                adjpval = TRUE,
+                                                widthValue = 4250, 
+                                                heightValue = 4250,
+                                                base_size = 3)
+
+# Total GOBP Analysis
+GOBPEnrichment_AstrosEV = runEnrichmentAnalysis(contrastEntrez_AstrosEV,
+                                                databases = "GO_BP",
+                                                out_dir = 
+                                                  paste0(outputDirAstroEV,
+                                                         "/GO_BP/nopVal/"),
+                                                OrgDb = org.Mm.eg.db,
+                                                organism = "mmu",
+                                                keyType = "ENTREZID",
+                                                minGSSize = 3,
+                                                maxGSSize = 30000,
+                                                pAdjustMethod = "fdr",
+                                                pvalueCutoff = 1,
+                                                verbose = FALSE,
+                                                nPermSimple = 100000,
+                                                eps = 0.00000001,
+                                                adjpval = TRUE,
+                                                widthValue = 4250, 
+                                                heightValue = 4250,
+                                                base_size = 3)
+```
+
+# GOCC Analysis
+```{r GOCC, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Significant GOCC Analysis
+GOCCEnrichment_AstrosEV = runEnrichmentAnalysis(contrastEntrez_AstrosEV,
+                                                databases = "GO_CC",
+                                                out_dir = 
+                                                  paste0(outputDirAstroEV,
+                                                         "/GO_CC/"),
+                                                OrgDb = org.Mm.eg.db,
+                                                organism = "mmu",
+                                                keyType = "ENTREZID",
+                                                minGSSize = 3,
+                                                maxGSSize = 30000,
+                                                pAdjustMethod = "fdr",
+                                                pvalueCutoff = 0.15,
+                                                verbose = FALSE,
+                                                nPermSimple = 100000,
+                                                eps = 0.00000001,
+                                                adjpval = TRUE,
+                                                widthValue = 4250, 
+                                                heightValue = 4250,
+                                                base_size = 3)
+
+# Total GOCC Analysis
+GOCCEnrichment_AstrosEV = runEnrichmentAnalysis(contrastEntrez_AstrosEV,
+                                                databases = "GO_CC",
+                                                out_dir = 
+                                                  paste0(outputDirAstroEV,
+                                                         "/GO_CC/nopVal/"),
+                                                OrgDb = org.Mm.eg.db,
+                                                organism = "mmu",
+                                                keyType = "ENTREZID",
+                                                minGSSize = 3,
+                                                maxGSSize = 30000,
+                                                pAdjustMethod = "fdr",
+                                                pvalueCutoff = 1,
+                                                verbose = FALSE,
+                                                nPermSimple = 100000,
+                                                eps = 0.00000001,
+                                                adjpval = TRUE,
+                                                widthValue = 4250, 
+                                                heightValue = 4250,
+                                                base_size = 3)
+```
+
+# GOMF Analysis
+```{r GOMF, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Significant Analysis
+GOMFEnrichment_AstrosEV = runEnrichmentAnalysis(contrastEntrez_AstrosEV,
+                                                databases = "GO_MF",
+                                                out_dir = 
+                                                  paste0(outputDirAstroEV,
+                                                         "/GO_MF/"),
+                                                OrgDb = org.Mm.eg.db,
+                                                organism = "mmu",
+                                                keyType = "ENTREZID",
+                                                minGSSize = 3,
+                                                maxGSSize = 30000,
+                                                pAdjustMethod = "fdr",
+                                                pvalueCutoff = 0.15,
+                                                verbose = FALSE,
+                                                nPermSimple = 100000,
+                                                eps = 0.00000001,
+                                                adjpval = TRUE,
+                                                widthValue = 4250, 
+                                                heightValue = 4250,
+                                                base_size = 3)
+
+# Total GOMF Analysis
+GOMFEnrichment_AstrosEV = runEnrichmentAnalysis(contrastEntrez_AstrosEV,
+                                                databases = "GO_MF",
+                                                out_dir = 
+                                                  paste0(outputDirAstroEV,
+                                                         "/GO_MF/nopVal/"),
+                                                OrgDb = org.Mm.eg.db,
+                                                organism = "mmu",
+                                                keyType = "ENTREZID",
+                                                minGSSize = 3,
+                                                maxGSSize = 30000,
+                                                pAdjustMethod = "fdr",
+                                                pvalueCutoff = 1,
+                                                verbose = FALSE,
+                                                nPermSimple = 100000,
+                                                eps = 0.00000001,
+                                                adjpval = TRUE,
+                                                widthValue = 4250, 
+                                                heightValue = 4250,
+                                                base_size = 3)
+```
+
+# Reactome Analysis
+```{r Reactome, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Significant Reactome Analysis
+ReactomeEnrichment_AstrosEV = runEnrichmentAnalysis(contrastEntrez_AstrosEV,
+                                                    databases = "Reactome",
+                                                    out_dir = paste0(
+                                                      outputDirAstroEV,
+                                                      "/Reactome/"),
+                                                    OrgDb = org.Mm.eg.db,
+                                                    organism = "mouse",
+                                                    keyType = "ENTREZID",
+                                                    minGSSize = 3,
+                                                    maxGSSize = 30000,
+                                                    pAdjustMethod = "fdr",
+                                                    pvalueCutoff = 0.15,
+                                                    verbose = FALSE,
+                                                    nPermSimple = 100000,
+                                                    eps = 0.00000001,
+                                                    adjpval = TRUE,
+                                                widthValue = 4250, 
+                                                heightValue = 4250,
+                                                base_size = 3)
+
+# Total Reactome Analysis
+ReactomeEnrichment_AstrosEV = runEnrichmentAnalysis(contrastEntrez_AstrosEV,
+                                                    databases = "Reactome",
+                                                    out_dir = paste0(
+                                                      outputDirAstroEV,
+                                                      "/Reactome/nopVal/"),
+                                                    OrgDb = org.Mm.eg.db,
+                                                    organism = "mouse",
+                                                    keyType = "ENTREZID",
+                                                    minGSSize = 3,
+                                                    maxGSSize = 30000,
+                                                    pAdjustMethod = "fdr",
+                                                    pvalueCutoff = 1,
+                                                    verbose = FALSE,
+                                                    nPermSimple = 100000,
+                                                    eps = 0.00000001,
+                                                    adjpval = TRUE,
+                                                widthValue = 4250, 
+                                                heightValue = 4250,
+                                                base_size = 3)
+```
+
+# WikiPathways Analysis
+```{r WikiPathways, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Significant WikiPathways Analysis
+WikiEnrichment_AstrosEV = runEnrichmentAnalysis(contrastEntrez_AstrosEV, 
+                                                databases = "WikiPathways",
+                                                out_dir = 
+                                                  paste0(outputDirAstroEV,
+                                                         "/WikiPathways/"),
+                                                OrgDb = org.Mm.eg.db, 
+                                                organism = "Mus musculus", 
+                                                keyType = "ENTREZID", 
+                                                minGSSize = 3, 
+                                                maxGSSize = 30000,
+                                                pAdjustMethod = "fdr",
+                                                pvalueCutoff = 0.15,
+                                                verbose = FALSE,
+                                                nPermSimple = 100000,
+                                                eps = 0.00000001, 
+                                                adjpval = TRUE,
+                                                widthValue = 4250, 
+                                                heightValue = 4250,
+                                                base_size = 3)
+
+# Total WikiPathways Analysis
+WikiEnrichment_AstrosEV = runEnrichmentAnalysis(contrastEntrez_AstrosEV, 
+                                                databases = "WikiPathways",
+                                                out_dir = paste0(
+                                                  outputDirAstroEV,
+                                                  "/WikiPathways/nopVal/"),
+                                                OrgDb = org.Mm.eg.db, 
+                                                organism = "Mus musculus", 
+                                                keyType = "ENTREZID", 
+                                                minGSSize = 3, 
+                                                maxGSSize = 30000,
+                                                pAdjustMethod = "fdr",
+                                                pvalueCutoff = 1,
+                                                verbose = FALSE,
+                                                nPermSimple = 100000,
+                                                eps = 0.00000001, 
+                                                adjpval = TRUE,
+                                                widthValue = 4250, 
+                                                heightValue = 4250,
+                                                base_size = 3)
+```
+
+# SubCellular Location Analysis
+```{r SubCel, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# SubCellular Location Analysis
+subcellLoc_FGSEA_AstrossEV = analyzeContrastFGSEA(
+  contrastEntrez_AstrosEV,
+  ESContrastSuffix = "_ESENTREZID",
+  contrastList_AstrosEVData,
+  proteomicsLocalizationDb,
+  organismName = "Mus musculus",
+  padjval = 0.15, 
+  gene_sets_Title = "SubcellularLocation",
+  out_dir = paste0(outputDirAstroEV, "SubCellularLocation/"),
+  nPermSimple = 100000,
+  eps = 0.00000001,
+  widthValue = 3000, 
+  heightValue = 4250,
+  base_size = 43,
+  rangeX = c(-1, 0)
+  )
+
+# SubCellular Location Abundance
+subcellLocAbundance_AstrossEV = analyzeCuratedAbundance(
+  sigProt = sigProt_AstrosEV_RAW,
+  gene_sets = proteomicsLocalizationDb,
+  translator = contrastsTranslator_AstrosEV,
+  term2Plot = "Mitochondria",
+  sigProtID = "10090_SYMBOL",
+  gene_setsID = "10090_ENTREZID",
+  min_threshold = 0.5,
+  gene_sets_Title = "SubcellularLocation",
+  label_threshold = 0.5, 
+  out_dir  = paste0(outputDirAstroEV, "SubCellularLocation/"),
+  legendSize = 30,
+  is_log2 = FALSE)
+```
+
+# Mitocarta Location Analysis
+```{r MitoLoc, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Mitocarta Location Analysis
+generalMitoLocation_FGSEA_AstrossEV = analyzeContrastFGSEA(
+  contrastEntrez_AstrosEV, 
+  ESContrastSuffix = "_ESENTREZID", 
+  contrastList_AstrosEVData,
+  gene_setsMito,
+  organismName = "Mus musculus",
+  padjval = 0.15, 
+  gene_sets_Title = "MitochondrialLocation",
+  out_dir = paste0(outputDirAstroEV, "MitoLocation/"), 
+  nPermSimple = 100000,
+  eps = 0.00000001,
+  widthValue = 3000, 
+  heightValue = 4250,
+  base_size = 43,
+  rangeX = c(-1, 0))
+
+# Mitocarta Location Abundance
+generalMitoLocationAbundance_AstrossEV = analyzeCuratedAbundance(
+  sigProt = sigProt_AstrosEV_RAW,
+  gene_sets = gene_setsMito, 
+  translator = contrastsTranslator_AstrosEV,
+  term2Plot = "MIM",
+  sigProtID = "10090_SYMBOL", 
+  gene_setsID = "10090_ENTREZID", 
+  label_threshold = 1, 
+  min_threshold = 0,
+  gene_sets_Title = "MitochondrialLocation", 
+  out_dir  = paste0(outputDirAstroEV, "MitoLocation/"),
+  legendSize = 33,
+  is_log2 = FALSE)
+```
+
+# Mitocarta Pathway Analysis
+```{r MitoPath, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Significant Mitocarta Pathway Analysis
+generalMitoPathway_FGSEA_AstrossEV = analyzeContrastFGSEA(
+  contrastEntrez_AstrosEV, 
+  ESContrastSuffix = "_ESENTREZID", 
+  contrastList_AstrosEVData,
+  gene_setsMitoPath, 
+  organismName = "Mus musculus",
+  padjval = 0.2, 
+  gene_sets_Title = "MitochondriaPathway", 
+  out_dir = paste0(outputDirAstroEV, "MitoPathway/"), 
+  nPermSimple = 100000, 
+  eps = 0.00000001,
+  widthValue = 3000, 
+  heightValue = 4250,
+  base_size = 37,
+  rangeX = c(-8, 8))
+
+# Total Mitocarta Pathway Analysis
+generalMitoPathway_FGSEA_AstrossEV = analyzeContrastFGSEA(
+  contrastEntrez_AstrosEV, 
+  ESContrastSuffix = "_ESENTREZID", 
+  contrastList_AstrosEVData,
+  gene_setsMitoPath, 
+  organismName = "Mus musculus",
+  padjval = 0.25, 
+  gene_sets_Title = "MitochondriaPathway", 
+  out_dir = paste0(outputDirAstroEV, "MitoPathway/nopVal/"), 
+  nPermSimple = 100000, 
+  eps = 0.0000000001,
+  widthValue = 3000, 
+  heightValue = 4250,
+  base_size = 43,
+  rangeX = c(-1., 0))
+
+# Mitocarta Pathway Abundance
+generalMitoPathwayAbundance_AstrossEV = analyzeCuratedAbundance(
+  sigProt = sigProt_AstrosEV_RAW, 
+  gene_sets = gene_setsMitoPath, 
+  translator = contrastsTranslator_AstrosEV,
+  term2Plot = "OXPHOS", 
+  sigProtID = "10090_SYMBOL",
+  gene_setsID = "10090_ENTREZID", 
+  label_threshold = 2, 
+  min_threshold = 0, 
+  gene_sets_Title = "MitochondriaPathway",
+  out_dir  = paste0(outputDirAstroEV, "MitoPathway/"),
+  legendSize = 28,
+  is_log2 = FALSE)
+```
+
+# Mitocarta Pathway SubTerm Analysis
+```{r MitoPath, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Significant Mitocarta Pathway Analysis
+generalMitoPathway_FGSEA_AstrossEV_2 = analyzeContrastFGSEA(
+  contrastEntrez_AstrosEV, 
+  ESContrastSuffix = "_ESENTREZID", 
+  contrastList_AstrosEVData,
+  gene_setsMitoPath2, 
+  organismName = "Mus musculus",
+  padjval = 0.2, 
+  gene_sets_Title = "MitochondriaPathway", 
+  out_dir = paste0(outputDirAstroEV, "SubMitoPathway/"), 
+  nPermSimple = 100000, 
+  eps = 0.00000001,
+  widthValue = 4250, 
+  heightValue = 4250,
+  base_size = 37,
+  rangeX = c(-8, 8))
+
+# Significant Mitocarta Pathway Analysis
+generalMitoPathway_FGSEA_AstrossEV_2 = analyzeContrastFGSEA(
+  contrastEntrez_AstrosEV, 
+  ESContrastSuffix = "_ESENTREZID", 
+  contrastList_AstrosEVData,
+  gene_setsMitoPath2, 
+  organismName = "Mus musculus",
+  padjval = 0.4, 
+  gene_sets_Title = "MitochondriaPathway", 
+  out_dir = paste0(outputDirAstroEV, "SubMitoPathway/nopVal/"), 
+  nPermSimple = 100000, 
+  eps = 0.00000001,
+  widthValue = 3250, 
+  heightValue = 4250,
+  base_size = 37,
+  rangeX = c(-8, 8))
+
+# Mitocarta Pathway Abundance
+generalMitoPathwayAbundance_AstrossEV = analyzeCuratedAbundance(
+  sigProt = sigProt_AstrosEV_RAW, 
+  gene_sets = gene_setsMitoPath2, 
+  translator = contrastsTranslator_AstrosEV,
+  term2Plot = "OXPHOS", 
+  sigProtID = "10090_SYMBOL",
+  gene_setsID = "10090_ENTREZID", 
+  label_threshold = 1.9, 
+  min_threshold =1.9, 
+  gene_sets_Title = "MitochondriaPathway",
+  out_dir  = paste0(outputDirAstroEV, "SubMitoPathway/"),
+  legendSize = 24,
+  is_log2 = FALSE)
+```
+
+## WT mitoAEVs Analysis
+
+# Obtain the complete list of proteins in WT mitoAEVs
+```{r proteinsWT, include=FALSE}
+
+proteinsNOTAD = PAProteins$Ids[PAProteins$Ids != "P62774"]
+proteinsNOTWT = "P62774"
+proteinsWT = proteins_unique_AstrosEV$Ids[proteins_unique_AstrosEV$Ids != proteinsNOTWT]
+proteinsAD = proteins_unique_AstrosEV$Ids[!proteins_unique_AstrosEV$Ids %in%  proteinsNOTAD]
+
+proteinsWTEntrez = translate_ID(proteinsWT,
+                                       "UNIPROT",
+                                       "ENTREZID",
+                                       species_db = org.Mm.eg.db,
+                                       manual_map = translatorMsUni2MsEn,
+                                       oriESData="_ES")
+
+
+proteinsmEV = list(proteinsWTEntrez = proteinsWTEntrez$`10090_ENTREZID`)
+```
+
+# KEGG Analysis of proteins in WT mitoAEVs
+```{r KEGGproteinsWT, include=FALSE}
+KEGGEnrichment_mEV = runEnrichmentAnalysisORA(proteinsmEV,
+                                               databases = "KEGG",
+                                               out_dir = paste0(outputDirmEVs,
+                                                                "KEGG/"),
+                                               OrgDb = org.Mm.eg.db,
+                                               organism = "mmu",
+                                               keyType = "ncbi-geneid",
+                                               minGSSize = 3,
+                                               maxGSSize = 30000,
+                                               pAdjustMethod = "fdr",
+                                               pvalueCutoff = 0.15,
+                                               verbose = FALSE,
+                                               adjpval = TRUE, 
+                                               widthValue = 3500, 
+                                               heightValue = 4250,
+                                               base_size = 5)
+
+KEGGEnrichment_mEV_Clusters = analyzeEnrichmentTermsclusters(KEGGEnrichment_mEV$proteinsWTEntrez$KEGG$enrichment,
+                                        p_adjust_thresh = 0.125,
+                                        count_thresh = 2,
+                                        minClusterSize = 10,
+                                        plot_sim_thresh = 0.2,
+                                        ont = "KEGG",
+                                        similarity_method = "overlap",
+                                        overlap_metric = "overlap_coef",
+                                        output_dir = paste0(outputDirmEVs, "KEGG/Clusters2"),
+                                        max_keywords = 10,
+                                        top_n_clusters = NULL,
+                                        use_wordcloud = FALSE,
+                                        titledotplot = "KEGG Clusters") 
+```
+
+# GOBP Analysis of proteins in WT mitoAEVs
+```{r GOBPproteinsWT, include=FALSE}
+GO_BPEnrichment_mEV = runEnrichmentAnalysisORA(proteinsmEV,
+                                              databases = "GO_BP",
+                                              out_dir =  paste0(outputDirmEVs,
+                                                                "GOBP/"),
+                                              OrgDb = org.Mm.eg.db,
+                                              organism = "mmu",
+                                              keyType = "ENTREZID",
+                                              minGSSize = 3,
+                                              maxGSSize = 30000,
+                                              pAdjustMethod = "fdr",
+                                              pvalueCutoff = 0.15,
+                                              verbose = FALSE,
+                                              adjpval = TRUE, 
+                                              widthValue = 3500, 
+                                              heightValue = 4250,
+                                              base_size = 2)
+
+GO_BPEnrichment_mEV_Clusters = analyzeEnrichmentTermsclusters(GO_BPEnrichment_mEV$proteinsWTEntrez$GO_BP$enrichment,
+                                        p_adjust_thresh = 0.125,
+                                        count_thresh = 3,
+                                        minClusterSize = 40,
+                                        plot_sim_thresh = 0.2,
+                                        ont = "BP",
+                                        similarity_method = "GO",
+                                        overlap_metric = "jaccard",
+                                        output_dir = paste0(outputDirmEVs, "GOBP/Clusters"),
+                                        max_keywords = 10,
+                                        top_n_clusters = NULL,
+                                        use_wordcloud = FALSE,
+                                        titledotplot = "GOBP Clusters") 
+```
+
+# GOCC Analysis of proteins in WT mitoAEVs
+```{r GOCCproteinsWT, include=FALSE}
+GO_CCEnrichment_mEV = runEnrichmentAnalysisORA(proteinsmEV,
+                                               databases = "GO_CC",
+                                               out_dir = paste0(outputDirmEVs,
+                                                                "GOCC/"),
+                                               OrgDb = org.Mm.eg.db,
+                                               organism = "mmu",
+                                               keyType = "ENTREZID",
+                                               minGSSize = 3,
+                                               maxGSSize = 30000,
+                                               pAdjustMethod = "fdr",
+                                               pvalueCutoff = 0.125,
+                                               verbose = FALSE,
+                                               adjpval = TRUE, 
+                                               widthValue = 3500, 
+                                               heightValue = 4250,
+                                               base_size = 2)
+
+GO_CCEnrichment_mEV_Clusters = analyzeEnrichmentTermsclusters(GO_CCEnrichment_mEV$proteinsWTEntrez$GO_CC$enrichment,
+                                        p_adjust_thresh = 0.125,
+                                        count_thresh = 3,
+                                        minClusterSize = 10,
+                                        plot_sim_thresh = 0.1,
+                                        ont = "CC",
+                                        similarity_method = "GO",
+                                        overlap_metric = "jaccard",
+                                        output_dir = paste0(outputDirmEVs, "GOCC/Clusters"),
+                                        max_keywords = 10,
+                                        top_n_clusters = NULL,
+                                        use_wordcloud = FALSE,
+                                        titledotplot = "GOCC Clusters") 
+```
+
+# GOMF Analysis of proteins in WT mitoAEVs
+```{r GOMFproteinsWT, include=FALSE}
+GO_MFEnrichment_mEV = runEnrichmentAnalysisORA(proteinsmEV,
+                                               databases = "GO_MF",
+                                               out_dir = paste0(outputDirmEVs,
+                                                                "GOMF/"),
+                                               OrgDb = org.Mm.eg.db,
+                                               organism = "mmu",
+                                               keyType = "ENTREZID",
+                                               minGSSize = 3,
+                                               maxGSSize = 30000,
+                                               pAdjustMethod = "fdr",
+                                               pvalueCutoff = 0.15,
+                                               verbose = FALSE,
+                                               adjpval = TRUE, 
+                                               widthValue = 3500, 
+                                               heightValue = 4250,
+                                               base_size = 2)
+
+GO_MFEnrichment_mEV_Clusters = analyzeEnrichmentTermsclusters(GO_MFEnrichment_mEV$proteinsWTEntrez$GO_MF$enrichment,
+                                        p_adjust_thresh = 0.125,
+                                        count_thresh = 2,
+                                        minClusterSize = 5,
+                                        plot_sim_thresh = 0.1,
+                                        ont = "MF",
+                                        similarity_method = "GO",
+                                        overlap_metric = "jaccard",
+                                        output_dir = paste0(outputDirmEVs, "GOMF/Clusters"),
+                                        max_keywords = 10,
+                                        top_n_clusters = NULL,
+                                        use_wordcloud = FALSE,
+                                        titledotplot = "GOMF Clusters") 
+```
+
+# Reactome Analysis of proteins in WT mitoAEVs
+```{r ReactomeproteinsWT, include=FALSE}
+ReactomeEnrichment_mEV = runEnrichmentAnalysisORA(proteinsmEV,
+                                               databases = "Reactome",
+                                               out_dir = paste0(outputDirmEVs,
+                                                                "Reactome/"),
+                                               OrgDb = org.Mm.eg.db,
+                                               organism = "mmu",
+                                               keyType = "ENTREZID",
+                                               minGSSize = 3,
+                                               maxGSSize = 30000,
+                                               pAdjustMethod = "fdr",
+                                               pvalueCutoff = 0.15,
+                                               verbose = FALSE,
+                                               adjpval = TRUE, 
+                                               widthValue = 3500, 
+                                               heightValue = 4250,
+                                               base_size = 2)
+
+ReactomeEnrichment_mEV_Clusters = analyzeEnrichmentTermsclusters(ReactomeEnrichment_mEV$proteinsWTEntrez$Reactome$enrichment,
+                                        p_adjust_thresh = 0.125,
+                                        count_thresh = 2,
+                                        minClusterSize = 7,
+                                        plot_sim_thresh = 0.1,
+                                        ont = "Reactome",
+                                        similarity_method = "overlap",
+                                        overlap_metric = "overlap_coef",
+                                        output_dir = paste0(outputDirmEVs, "Reactome/Clusters"),
+                                        max_keywords = 10,
+                                        top_n_clusters = NULL,
+                                        use_wordcloud = TRUE,
+                                        titledotplot = "Reactome Clusters") 
+```
+
+# SubCellularLocation Analysis of proteins in WT mitoAEVs
+```{r SubCelLocproteinsWT, include=FALSE}
+# SubCellular Location Analysis of WT mitoAEVs
+pre_term2gene_proteomicsLocalizationDb = stack(proteomicsLocalizationDb)
+term2gene_proteomicsLocalizationDb = data.frame(
+  term = pre_term2gene_proteomicsLocalizationDb$ind,
+  gene = pre_term2gene_proteomicsLocalizationDb$values)
+
+subcellLocEnrich_mEV = lapply(names(proteinsmEV), function(clusterName) {
+  clusterData = as.character(proteinsmEV[[clusterName]])
+  clusterResult = enricher(gene = clusterData, 
+                           TERM2GENE = term2gene_proteomicsLocalizationDb,
+                           universe = term2gene_proteomicsLocalizationDb$gene,
+                           pvalueCutoff = 0.15,
+                           pAdjustMethod = "fdr",
+                           minGSSize = 3,
+                           maxGSSize = 300000)
+  if (!is.null(clusterResult) && nrow(clusterResult@result) > 0) {
+    clusterResult_df = as.data.frame(clusterResult@result)
+    write.csv(clusterResult_df, paste0(outputDirmEVs,
+                                       "SubCellularLocation/",
+                                       clusterName, "_enrichment.csv"),
+              row.names = FALSE)
+    clusterResultSig = subset(clusterResult_df, p.adjust < 0.05)
+    clusterResultSig$GeneRatio_num = sapply(clusterResultSig$GeneRatio, function(x) {
+      eval(parse(text = x))
+      })
+    clusterResultSig_filtered = subset(clusterResultSig, GeneRatio_num > 0.08)
+    clusterResultPlot = clusterResult
+    clusterResultPlot@result = clusterResultSig_filtered
+    
+    if (nrow(clusterResultSig) > 0) {
+      dir2save = paste0(outputDirmEVs,
+                        "SubCellularLocation/",
+                        clusterName, "_enrichment.tiff")
+      tiff(filename = dir2save, width = 4000, height = 4250, res = 300)
+        d = dotplot(clusterResultPlot,
+                         showCategory = 20,
+                         title = paste("Enrichment -", clusterName)) +
+                      aes(fill = p.adjust) +
+            labs(title = "Subcellular Location") +
+            theme_void() +
+            theme(plot.title = element_text(hjust = 0.5, margin = margin(b = 20)),
+                  axis.text.y = element_text(size = 45, hjust = 1, margin = margin(r = 0.5)),
+                  axis.text.x = element_text(size = 30),
+                  axis.title.x = element_text(size = 45, face = "bold", margin = margin(t=5)),
+                  title = element_text(size = 45, face = "bold"),
+                  legend.text = element_text(size = 35),
+                  legend.title = element_text(size = 35, margin = margin(b = 20)),
+                  legend.position = "right",
+                  legend.box.just = "center",
+                  legend.title.align = 0.5,
+                  legend.spacing.y = unit(1.5, "cm"),
+                  legend.box.spacing = unit(1, "cm"),
+                  legend.key.height = unit(1.5, "cm"),,
+                  plot.margin = unit(c(1, 1, 1, 1), "cm")) +
+            guides(color = guide_colorbar(
+              title = "Adj p", 
+              title.hjust = 0.5,
+              label.theme = element_text(hjust = 0.5),
+              
+            ),
+            size = guide_legend(
+              title = "Counts",
+              title.position = "top",
+              title.hjust = 0.5,
+              ncol = 1,
+              label.theme = element_text(hjust = 0.5)
+            )) +
+            annotate("rect", xmin = -Inf, xmax = 0, ymin = -Inf, ymax = Inf, fill = "dimgray", alpha = 0.1) +
+            annotate("rect", xmin = 0, xmax = Inf, ymin = -Inf, ymax = Inf, fill = "#870052", alpha = 0.1) +
+            coord_cartesian(clip = "off") +
+            scale_size(range = c(15, 25)) +
+            scale_y_discrete(labels = function(x) str_wrap(x, width = 70)) + 
+            scale_x_continuous(limits = c(0, 0.5),breaks = seq(0, 0.5, 0.25)) +
+            scale_fill_gradientn(
+              colours =  colorRampPalette(c("darkgreen", "#4F0433"))(100),
+              name = "Adj p")
+          print(d)
+      dev.off()
+    }
+    return(clusterResult_df)
+  } else {
+    return(NULL)
+  }
+})
+```
+
+# MitoLocation Analysis of proteins in WT mitoAEVs
+```{r MitoLocproteinsWT, include=FALSE}
+# Mitocarta Location Analysis of WT mitoAEVs
+pre_term2gene_proteomicsCellTypeDb = stack(gene_setsMito)
+term2gene_proteomicsCellTypeDb = data.frame(
+  term = pre_term2gene_proteomicsCellTypeDb$ind, 
+  gene = pre_term2gene_proteomicsCellTypeDb$values) 
+
+mitoLocEnrich_mEV = lapply(names(proteinsmEV), function(clusterName) {
+  clusterData = as.character(proteinsmEV[[clusterName]])
+  clusterResult = enricher(gene = clusterData, 
+                           TERM2GENE = term2gene_proteomicsCellTypeDb,
+                           universe = as.character(term2gene_proteomicsCellTypeDb$gene),
+                           pvalueCutoff = 0.15,
+                           pAdjustMethod = "fdr",
+                           minGSSize = 3,
+                           maxGSSize = 300000)
+  if (!is.null(clusterResult) && nrow(clusterResult@result) > 0) {
+    clusterResult_df = as.data.frame(clusterResult@result)
+    write.csv(clusterResult_df, paste0(outputDirmEVs,
+                                       "MitoLocation/", 
+                                       clusterName, 
+                                       "_enrichment.csv"),
+              row.names = FALSE)
+    clusterResultSig = subset(clusterResult_df, p.adjust < 0.125)
+    if (nrow(clusterResultSig) > 0) {
+      dir2save = paste0(outputDirmEVs, "MitoLocation/", 
+                        clusterName,
+                        "_enrichment.tiff")
+      tiff(filename = dir2save, width = 2000, height = 4250, res = 300)
+        d = dotplot(clusterResult,
+                         showCategory = 20,
+                         title = paste("Enrichment -", clusterName)) +
+                      aes(fill = p.adjust) +
+            labs(title = "Submitochondrial Location") +
+            theme_void() +
+            theme(plot.title = element_text(hjust = 0.5, margin = margin(b = 20)),
+                  axis.text.y = element_text(size = 45, hjust = 1, margin = margin(r = 0.5)),
+                  axis.text.x = element_text(size = 30),
+                  axis.title.x = element_text(size = 45, face = "bold", margin = margin(t=5)),
+                  title = element_text(size = 45, face = "bold"),
+                  legend.text = element_text(size = 35),
+                  legend.title = element_text(size = 35, margin = margin(b = 20)),
+                  legend.position = "right",
+                  legend.box.just = "center",
+                  legend.title.align = 0.5,
+                  legend.spacing.y = unit(1.5, "cm"),
+                  legend.box.spacing = unit(1, "cm"),
+                  legend.key.height = unit(1.5, "cm"),,
+                  plot.margin = unit(c(1, 1, 1, 1), "cm")) +
+            guides(color = guide_colorbar(
+              title = "Adj p", 
+              title.hjust = 0.5,
+              label.theme = element_text(hjust = 0.5),
+              
+            ),
+            size = guide_legend(
+              title = "Counts",
+              title.position = "top",
+              title.hjust = 0.5,
+              ncol = 1,
+              label.theme = element_text(hjust = 0.5)
+            )) +
+            annotate("rect", xmin = -Inf, xmax = 0, ymin = -Inf, ymax = Inf, fill = "dimgray", alpha = 0.1) +
+            annotate("rect", xmin = 0, xmax = Inf, ymin = -Inf, ymax = Inf, fill = "#870052", alpha = 0.1) +
+            coord_cartesian(clip = "off") +
+            scale_size(range = c(15, 25)) +
+            scale_y_discrete(labels = function(x) str_wrap(x, width = 70)) + 
+            scale_x_continuous(limits = c(0, 0.5),breaks = seq(0, 0.5, 0.25)) +
+            scale_fill_gradientn(labels = function(x) sprintf("%.3f", x),
+              colours =  colorRampPalette(c("darkgreen", "#4F0433"))(100),
+              name = "Adj p")
+          print(d)
+      dev.off()
+    }
+    return(clusterResult_df)
+  } else {
+    return(NULL)
+  }
+})
+```
+
+# MitoPathway Analysis of proteins in WT mitoAEVs
+```{r MitoPathproteinsWT, include=FALSE}
+# Mitocarta Pathways Analysis of WT mitoAEVs
+pre_term2gene_proteomicsCellTypeDb = stack(gene_setsMitoPath)
+term2gene_proteomicsCellTypeDb = data.frame(
+  term = pre_term2gene_proteomicsCellTypeDb$ind, 
+  gene = pre_term2gene_proteomicsCellTypeDb$values)
+
+mitoPathwaysEnrich_mEV = lapply(names(proteinsmEV), function(clusterName) {
+  clusterData = as.character(proteinsmEV[[clusterName]])
+  clusterResult = enricher(gene = clusterData, 
+                           TERM2GENE = term2gene_proteomicsCellTypeDb,
+                           pvalueCutoff = 0.15,
+                           universe = as.character(term2gene_proteomicsCellTypeDb$gene),
+                           pAdjustMethod = "fdr",
+                           minGSSize = 3,
+                           maxGSSize = 300000)
+  if (!is.null(clusterResult) && nrow(clusterResult@result) > 0) {
+    clusterResult_df = as.data.frame(clusterResult@result)
+    write.csv(clusterResult_df, paste0(outputDirmEVs,
+                                       "MitoPathway/",
+                                       clusterName, 
+                                       "_enrichment.csv"),
+              row.names = FALSE)
+    clusterResultSig = subset(clusterResult_df, p.adjust < 0.125)
+    if (nrow(clusterResultSig) > 0) {
+      dir2save = paste0(outputDirmEVs, 
+                        "MitoPathway/", 
+                        clusterName, 
+                        "_enrichment.tiff")
+      tiff(filename = dir2save, width = 4000, height = 4000, res = 300)
+        d = dotplot(clusterResult,
+                         showCategory = 20,
+                         title = paste("Enrichment -", clusterName)) +
+                      aes(fill = p.adjust) +
+            labs(title = "Mitochondrial Pathways") +
+            theme_void() +
+            theme(plot.title = element_text(hjust = 0.5, margin = margin(b = 20)),
+                  axis.text.y = element_text(size = 45, hjust = 1, margin = margin(r = 0.5)),
+                  axis.text.x = element_text(size = 30),
+                  axis.title.x = element_text(size = 45, face = "bold", margin = margin(t=5)),
+                  title = element_text(size = 45, face = "bold"),
+                  legend.text = element_text(size = 35),
+                  legend.title = element_text(size = 35, margin = margin(b = 20)),
+                  legend.position = "right",
+                  legend.box.just = "center",
+                  legend.title.align = 0.5,
+                  legend.spacing.y = unit(1.5, "cm"),
+                  legend.box.spacing = unit(1, "cm"),
+                  legend.key.height = unit(1.5, "cm"),,
+                  plot.margin = unit(c(1, 1, 1, 1), "cm")) +
+            guides(color = guide_colorbar(
+              title = "Adj p", 
+              title.hjust = 0.5,
+              label.theme = element_text(hjust = 0.5),
+              
+            ),
+            size = guide_legend(
+              title = "Counts",
+              title.position = "top",
+              title.hjust = 0.5,
+              ncol = 1,
+              label.theme = element_text(hjust = 0.5)
+            )) +
+            annotate("rect", xmin = -Inf, xmax = 0, ymin = -Inf, ymax = Inf, fill = "dimgray", alpha = 0.1) +
+            annotate("rect", xmin = 0, xmax = Inf, ymin = -Inf, ymax = Inf, fill = "#870052", alpha = 0.1) +
+            coord_cartesian(clip = "off") +
+            scale_size(range = c(15, 25)) +
+            scale_y_discrete(labels = function(x) str_wrap(x, width = 70)) + 
+            scale_x_continuous(limits = c(0, 0.5),breaks = seq(0, 0.5, 0.25)) +
+            scale_fill_gradientn(labels = function(x) sprintf("%.3f", x),
+              colours =  colorRampPalette(c("darkgreen", "#4F0433"))(100),
+              name = "Adj p")
+          print(d)
+      dev.off()
+    }
+    return(clusterResult_df)
+  } else {
+    return(NULL)
+  }
+})
+
+
+```
+
+# SubMitoPathway Analysis of proteins in WT mitoAEVs
+```{r MitoPathproteinsWT, include=FALSE}
+# Mitocarta Pathways Analysis of WT mitoAEVs
+pre_term2gene_proteomicsCellTypeDb = stack(gene_setsMitoPath2)
+term2gene_proteomicsCellTypeDb = data.frame(
+  term = pre_term2gene_proteomicsCellTypeDb$ind, 
+  gene = pre_term2gene_proteomicsCellTypeDb$values)
+
+mitoPathwaysEnrich_mEV = lapply(names(proteinsmEV), function(clusterName) {
+  clusterData = as.character(proteinsmEV[[clusterName]])
+  clusterResult = enricher(gene = clusterData, 
+                           TERM2GENE = term2gene_proteomicsCellTypeDb,
+                           pvalueCutoff = 0.15,
+                           universe = as.character(term2gene_proteomicsCellTypeDb$gene),
+                           pAdjustMethod = "fdr",
+                           minGSSize = 3,
+                           maxGSSize = 300000)
+  if (!is.null(clusterResult) && nrow(clusterResult@result) > 0) {
+    clusterResult_df = as.data.frame(clusterResult@result)
+    write.csv(clusterResult_df, paste0(outputDirmEVs,
+                                       "SubMitoPathway/",
+                                       clusterName, 
+                                       "_enrichment.csv"),
+              row.names = FALSE)
+    clusterResultSig = subset(clusterResult_df, p.adjust < 0.125)
+    if (nrow(clusterResultSig) > 0) {
+      dir2save = paste0(outputDirmEVs, 
+                        "SubMitoPathway/", 
+                        clusterName, 
+                        "_enrichment.tiff")
+      tiff(filename = dir2save, width = 4000, height = 4000, res = 300)
+        d = dotplot(clusterResult,
+                         showCategory = 20,
+                         title = paste("Enrichment -", clusterName)) +
+                      aes(fill = p.adjust) +
+            labs(title = "Mitochondrial Pathways") +
+            theme_void() +
+            theme(plot.title = element_text(hjust = 0.5, margin = margin(b = 20)),
+                  axis.text.y = element_text(size = 30, hjust = 1, margin = margin(r = 0.5)),
+                  axis.text.x = element_text(size = 30),
+                  axis.title.x = element_text(size = 45, face = "bold", margin = margin(t=5)),
+                  title = element_text(size = 45, face = "bold"),
+                  legend.text = element_text(size = 35),
+                  legend.title = element_text(size = 35, margin = margin(b = 20)),
+                  legend.position = "right",
+                  legend.box.just = "center",
+                  legend.title.align = 0.5,
+                  legend.spacing.y = unit(1.5, "cm"),
+                  legend.box.spacing = unit(1, "cm"),
+                  legend.key.height = unit(1.5, "cm"),,
+                  plot.margin = unit(c(1, 1, 1, 1), "cm")) +
+            guides(color = guide_colorbar(
+              title = "Adj p", 
+              title.hjust = 0.5,
+              label.theme = element_text(hjust = 0.5),
+              
+            ),
+            size = guide_legend(
+              title = "Counts",
+              title.position = "top",
+              title.hjust = 0.5,
+              ncol = 1,
+              label.theme = element_text(hjust = 0.5)
+            )) +
+            annotate("rect", xmin = -Inf, xmax = 0, ymin = -Inf, ymax = Inf, fill = "dimgray", alpha = 0.1) +
+            annotate("rect", xmin = 0, xmax = Inf, ymin = -Inf, ymax = Inf, fill = "#870052", alpha = 0.1) +
+            coord_cartesian(clip = "off") +
+            scale_size(range = c(15, 25)) +
+            scale_y_discrete(labels = function(x) str_wrap(x, width = 70)) + 
+            scale_x_continuous(limits = c(0, 0.2),breaks = seq(0, 0.2, 0.1)) +
+            scale_fill_gradientn(labels = function(x) sprintf("%.3f", x),
+              colours =  colorRampPalette(c("darkgreen", "#4F0433"))(100),
+              name = "Adj p")
+          print(d)
+      dev.off()
+    }
+    return(clusterResult_df)
+  } else {
+    return(NULL)
+  }
+})
+
+
+```

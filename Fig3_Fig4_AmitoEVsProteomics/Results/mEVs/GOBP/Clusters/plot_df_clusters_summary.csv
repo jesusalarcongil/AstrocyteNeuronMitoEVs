@@ -1,0 +1,25 @@
+"cluster","n_terms","mean_minusLog10_padj","mean_sim","keywords","label_y_wrapped"
+11,43,18.9727439394481,0.416957724354983,"process metabolic catabolic nucleotide purine regulation atp biosynthetic positive ribonucleotide","process metabolic catabolic nucleotide
+purine regulation atp
+biosynthetic positive ribonucleotide"
+10,46,3.59312482650803,0.344944779696497,"regulation ion transport transmembrane positive activity calcium transporter negative sodium","regulation ion transport transmembrane
+positive activity calcium
+transporter negative sodium"
+7,75,2.25547966346088,0.279704427089589,"regulation positive cell response immune activation pathway signaling chemotaxis receptor","regulation positive cell response
+immune activation pathway
+signaling chemotaxis receptor"
+3,100,4.75907598806978,0.24999898908422,"regulation protein localization positive secretion membrane transport negative establishment hormone","regulation protein localization positive
+secretion membrane transport
+negative establishment hormone"
+4,86,4.07040966187387,0.236357027609969,"regulation positive development negative cell differentiation morphogenesis neuron axon dendrite","regulation positive development negative
+cell differentiation morphogenesis
+neuron axon dendrite"
+6,76,4.40186074852499,0.227745421606393,"development cell migration tube regulation formation blood coagulation differentiation glial","development cell migration tube
+regulation formation blood
+coagulation differentiation glial"
+9,60,3.09756201593304,0.224100585175432,"regulation transport positive membrane mitochondrial lipid negative endocytosis acid cholesterol","regulation transport positive membrane
+mitochondrial lipid negative
+endocytosis acid cholesterol"
+8,71,5.3684245470635,0.210162577304859,"regulation assembly positive organization actin filament negative cell polymerization telomere","regulation assembly positive organization
+actin filament negative
+cell polymerization telomere"

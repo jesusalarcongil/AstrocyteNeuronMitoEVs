@@ -1,0 +1,19 @@
+"cluster","n_terms","mean_minusLog10_padj","mean_sim","keywords","label_y_wrapped"
+5,14,17.7048251438178,0.669856126794435,"disease alcoholic alzheimer amyotrophic ataxia carcinogenesis cardiomyopathy chemical diabetic diseases","disease alcoholic alzheimer amyotrophic
+ataxia carcinogenesis cardiomyopathy
+chemical diabetic diseases"
+7,10,8.5612501540251,0.634582892758936,"cardiomyopathy signaling adhesion akt arrhythmogenic cancer cell cells cytoskeleton dilated","cardiomyopathy signaling adhesion akt
+arrhythmogenic cancer cell
+cells cytoskeleton dilated"
+6,12,2.98767345353051,0.551812933062933,"cancer pathway signaling activation age atherosclerosis axon bladder complications diabetic","cancer pathway signaling activation
+age atherosclerosis axon
+bladder complications diabetic"
+4,15,2.93643697591591,0.529116365012724,"secretion signaling absorption aldosterone hormone pathway reabsorption regulated synthesis thyroid","secretion signaling absorption aldosterone
+hormone pathway reabsorption
+regulated synthesis thyroid"
+3,17,1.81101825597838,0.457390490178781,"pathway signaling synapse term apelin carcinogenesis cholinergic circadian depression entrainment","pathway signaling synapse term
+apelin carcinogenesis cholinergic
+circadian depression entrainment"
+2,21,8.58618392503947,0.341494906076218,"metabolism acid degradation biosynthesis carbon cycle pathway signaling acids alanine","metabolism acid degradation biosynthesis
+carbon cycle pathway
+signaling acids alanine"
